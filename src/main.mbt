@@ -16,7 +16,6 @@ fn view(
   }
   // @dom_ffi.log("Store to render: " + store.to_json().stringify(indent=2))
   div(class_name=@respo.ui_global, style=respo_style(padding=Px(12)), [
-    comp_counter(store.states.pick("counter"), store.counted),
     comp_query(
       store.states.pick("query"),
       store.query_loading,
