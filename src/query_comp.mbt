@@ -23,115 +23,37 @@ fn comp_query(
     dispatch.set_state(cursor, QueryState::{ input_val: prompt, loading: true }) catch {
       _ => ()
     }
-    let _ = @js_async.Promise::from_async(async fn() {
-      println("Inside async: starting POST /query")
-      // POST /query
-      let body = "{\"prompt\": \"" + prompt + "\", \"mode\": \"hybrid\"}"
-      println("Request body: \{body}")
-      let resp = fetch("http://localhost:8080/query", make_post_options(body)).wait() catch {
-        error => {
-          println("Fetch error: \{error}")
-          dispatch.set_state(cursor, QueryState::{
-            input_val: prompt,
-            loading: false,
-          })
-          dispatch.run(QueryError("Fetch failed: " + error.to_string()))
-          return
-        }
-      }
-      println("Response status: \{resp.status()}, ok: \{resp.ok()}")
-      if not(resp.ok()) {
+    // 使用纯 JS 实现的异步请求
+    run_query_js(
+      prompt,
+      fn(result) {
+        println("Query success, result length: \{result.length()}")
         dispatch.set_state(cursor, QueryState::{
           input_val: prompt,
           loading: false,
-        })
-        dispatch.run(
-          QueryError("Failed to start query: " + resp.status().to_string()),
-        )
-        return
-      }
-      let json_resp = resp.json().wait() catch {
-          error => {
-            println("JSON parse error: \{error}")
-            dispatch.set_state(cursor, QueryState::{
-              input_val: prompt,
-              loading: false,
-            })
-            dispatch.run(QueryError("JSON parse failed: " + error.to_string()))
-            return
-          }
-        }
-      let id = get_id(json_resp)
-      println("Got task id: \{id}")
-
-      // 轮询 /query/{id}
-      while true {
-        println("Polling /query/\{id}")
-        let poll_resp = fetch(
-          "http://localhost:8080/query/" + id,
-          make_get_options(),
-        ).wait() catch {
-          error => {
-            println("Poll fetch error: \{error}")
-            dispatch.set_state(cursor, QueryState::{
-              input_val: prompt,
-              loading: false,
-            })
-            dispatch.run(QueryError("Poll fetch failed: " + error.to_string()))
-            return
-          }
-        }
-        if not(poll_resp.ok()) {
-          dispatch.set_state(cursor, QueryState::{
-            input_val: prompt,
-            loading: false,
-          })
-          dispatch.run(
-            QueryError(
-              "Failed to poll query: " + poll_resp.status().to_string(),
-            ),
-          )
-          return
-        }
-        let poll_json = poll_resp.json().wait() catch {
-            error => {
-              println("Poll JSON parse error: \{error}")
-              dispatch.set_state(cursor, QueryState::{
-                input_val: prompt,
-                loading: false,
-              })
-              dispatch.run(
-                QueryError("Poll JSON parse failed: " + error.to_string()),
-              )
-              return
-            }
-          }
-        let status = get_status(poll_json)
-        println("Poll status: \{status}")
-        if status == "done" {
-          let result = get_result(poll_json)
-          println("Query done, result length: \{result.length()}")
-          dispatch.set_state(cursor, QueryState::{
-            input_val: prompt,
-            loading: false,
-          })
-          dispatch.run(QuerySuccess(result))
-          break
-        } else if status == "error" {
-          println("Query failed on server")
-          dispatch.set_state(cursor, QueryState::{
-            input_val: prompt,
-            loading: false,
-          })
-          dispatch.run(QueryError("Query failed on server"))
-          break
-        }
-        sleep(1000).wait() catch {
+        }) catch {
           _ => ()
         }
-      }
-    })
-    println("start_query_request: after async")
+        dispatch.run(QuerySuccess(result)) catch {
+          _ => ()
+        }
+        @respo.mark_need_rerender()
+      },
+      fn(err) {
+        println("Query error: \{err}")
+        dispatch.set_state(cursor, QueryState::{
+          input_val: prompt,
+          loading: false,
+        }) catch {
+          _ => ()
+        }
+        dispatch.run(QueryError(err)) catch {
+          _ => ()
+        }
+        @respo.mark_need_rerender()
+      },
+    )
+    println("start_query_request: after run_query_js")
   }
 
   @respo_node.div(class_name=style_query_container, [

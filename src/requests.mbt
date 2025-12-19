@@ -57,6 +57,59 @@ extern "js" fn get_result(json : JSJson) -> String =
 extern "js" fn sleep(ms : Int) -> @js_async.Promise[Unit] =
   #| (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
+///|
+/// Helper to schedule an async function to run on the next tick
+extern "js" fn schedule_async(promise : @js_async.Promise[Unit]) -> Unit =
+  #| (p) => { p.then(() => {}).catch(e => console.error("Async error:", e)); }
+
+///|
+/// Run query using pure JS async - bypassing MoonBit async issues
+extern "js" fn run_query_js(
+  prompt : String,
+  on_success : (String) -> Unit,
+  on_error : (String) -> Unit,
+) -> Unit =
+  #| async (prompt, onSuccess, onError) => {
+  #|   try {
+  #|     console.log("run_query_js: starting with prompt:", prompt);
+  #|     const body = JSON.stringify({ type: "hybrid", query: prompt });
+  #|     const resp = await fetch("http://localhost:8080/query", {
+  #|       method: "POST",
+  #|       headers: { "Content-Type": "application/json" },
+  #|       body
+  #|     });
+  #|     console.log("run_query_js: POST response status:", resp.status);
+  #|     if (!resp.ok) {
+  #|       onError("Failed to start query: " + resp.status);
+  #|       return;
+  #|     }
+  #|     const json = await resp.json();
+  #|     const id = json.id;
+  #|     console.log("run_query_js: got task id:", id);
+  #|     while (true) {
+  #|       console.log("run_query_js: polling /query/" + id);
+  #|       const pollResp = await fetch("http://localhost:8080/query/" + id);
+  #|       if (!pollResp.ok) {
+  #|         onError("Failed to poll: " + pollResp.status);
+  #|         return;
+  #|       }
+  #|       const pollJson = await pollResp.json();
+  #|       console.log("run_query_js: poll status:", pollJson.status);
+  #|       if (pollJson.status === "done") {
+  #|         onSuccess(pollJson.content || pollJson.result || "");
+  #|         return;
+  #|       } else if (pollJson.status === "error") {
+  #|         onError(pollJson.error || "Query failed");
+  #|         return;
+  #|       }
+  #|       await new Promise(r => setTimeout(r, 1000));
+  #|     }
+  #|   } catch (e) {
+  #|     console.error("run_query_js error:", e);
+  #|     onError(e.toString());
+  #|   }
+  #| }
+
 // Async function to run the query
 
 ///|
