@@ -10,6 +10,7 @@
       "alias": "respo_node"
     },
     { "path": "tiye/dom-ffi", "alias": "dom_ffi" },
-    { "path": "tiye/respo_css", "alias": "css" }
+    { "path": "tiye/respo_css", "alias": "css" },
+    { "path": "moonbitlang/async/js_async", "alias": "js_async" }
   ]
 }

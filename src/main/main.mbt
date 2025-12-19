@@ -17,6 +17,12 @@ fn view(
   // @dom_ffi.log("Store to render: " + store.to_json().stringify(indent=2))
   div(class_name=@respo.ui_global, style=respo_style(padding=Px(12)), [
     comp_counter(store.states.pick("counter"), store.counted),
+    comp_query(
+      store.states.pick("query"),
+      store.query_loading,
+      store.query_result,
+      store.query_error,
+    ),
   ])
 }
 
@@ -37,6 +43,24 @@ fn main {
         @dom_ffi.log("Action: \{op}")
       }
       app.store.val = app.store.val.update(op)
+      match op {
+        StartQuery(prompt) => {
+          let _ = @js_async.Promise::from_async(async fn() {
+            try {
+              let result = run_query(prompt)
+              app.store.val = app.store.val.update(QuerySuccess(result))
+              @respo.mark_need_rerender()
+            } catch {
+              Failure(msg) => {
+                app.store.val = app.store.val.update(QueryError(msg))
+                @respo.mark_need_rerender()
+              }
+            }
+          })
+          ()
+        }
+        _ => ()
+      }
     })
     let dev_mode = @dom_ffi.new_url_search_params(window.location().search()).get(
       "mode",
