@@ -3,7 +3,6 @@ struct Store {
   counted : Int
   states : @respo.RespoStatesTree
   query_result : String
-  query_loading : Bool
   query_error : String
 } derive(ToJson, @json.FromJson, Eq)
 
@@ -13,7 +12,6 @@ impl Default for Store with default() -> Store {
     counted: 0,
     states: @respo.RespoStatesTree::default(),
     query_result: "",
-    query_loading: false,
     query_error: "",
   }
 }
@@ -29,9 +27,6 @@ struct Task {
 ///|
 enum ActionOp {
   StatesChange(@respo.RespoUpdateState)
-  Increment
-  Decrement
-  IncTwice
   StartQuery(String)
   QuerySuccess(String)
   QueryError(String)
@@ -48,9 +43,7 @@ impl Show for ActionOp with output(self, logger) -> Unit {
     StatesChange(state) =>
       "StatesChange(\{state.cursor} \{state.backup.to_json()})"
     // Intent(_intent) => "Intent(...)"
-    Increment => "Increment"
-    Decrement => "Decrement"
-    IncTwice => "IncTwice"
+
     StartQuery(prompt) => "StartQuery(\{prompt})"
     QuerySuccess(res) => "QuerySuccess(\{res})"
     QueryError(err) => "QueryError(\{err})"
@@ -62,13 +55,9 @@ impl Show for ActionOp with output(self, logger) -> Unit {
 /// update store immutably
 fn Store::update(self : Store, op : ActionOp) -> Store {
   match op {
-    Increment => { ..self, counted: self.counted + 1 }
     StatesChange(states) => { ..self, states: self.states.set_in(states) }
-    Decrement => { ..self, counted: self.counted - 1 }
-    StartQuery(_) =>
-      { ..self, query_loading: true, query_error: "", query_result: "" }
-    QuerySuccess(res) => { ..self, query_loading: false, query_result: res }
-    QueryError(err) => { ..self, query_loading: false, query_error: err }
-    _ => self
+    StartQuery(_) => { ..self, query_error: "", query_result: "" }
+    QuerySuccess(res) => { ..self, query_result: res }
+    QueryError(err) => { ..self, query_error: err }
   }
 }

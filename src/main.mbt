@@ -5,7 +5,7 @@ using @respo_node {div, span, button}
 using @css {respo_style}
 
 ///|
-let app_store_key : String = "mbt-workflow"
+let app_store_key : String = "moonverse-portal"
 
 ///|
 fn view(
@@ -18,7 +18,6 @@ fn view(
   div(class_name=@respo.ui_global, style=respo_style(padding=Px(12)), [
     comp_query(
       store.states.pick("query"),
-      store.query_loading,
       store.query_result,
       store.query_error,
     ),
@@ -30,8 +29,10 @@ fn main {
   let window = @dom_ffi.window()
   if window.document().query_selector(".app") is Some(mount_target) {
     let mount_target = mount_target.reinterpret_as_node()
+    let mut store_0 : Store = @respo.try_load_storage(app_store_key)
+    store_0 = { ..store_0, states: @respo.RespoStatesTree::default() }
     let app : @respo.RespoApp[Store] = {
-      store: Ref::new(@respo.try_load_storage(app_store_key)),
+      store: Ref::new(store_0),
       mount_target,
       storage_key: app_store_key,
     }

@@ -1,4 +1,5 @@
 // FFI for fetch
+
 ///|
 type JSResponse
 
@@ -64,7 +65,7 @@ pub async fn run_query(prompt : String) -> String raise Failure {
   let options = make_post_options(body)
 
   // POST /query
-  let resp = fetch("https://moonverse.tiye.me/query", options).wait() catch {
+  let resp = fetch("http://localhost:8080/query", options).wait() catch {
     error => raise Failure("Fetch failed: " + error.to_string())
   }
   if not(resp.ok()) {
@@ -78,7 +79,7 @@ pub async fn run_query(prompt : String) -> String raise Failure {
   // Poll /query/{id}
   while true {
     let poll_resp = fetch(
-      "https://moonverse.tiye.me/query/" + id,
+      "http://localhost:8080/query/" + id,
       make_get_options(),
     ).wait() catch {
       error => raise Failure("Poll fetch failed: " + error.to_string())
