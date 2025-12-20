@@ -64,12 +64,15 @@ extern "js" fn schedule_async(promise : @js_async.Promise[Unit]) -> Unit =
 
 ///|
 /// Run query using pure JS async - bypassing MoonBit async issues
+/// on_progress receives: (phase, message, code_count, docs_count, partial_content, code_details_json, docs_details_json, stats_json)
+/// on_success receives: (result, code_count, docs_count, code_details_json, docs_details_json, stats_json)
 extern "js" fn run_query_js(
   prompt : String,
-  on_success : (String) -> Unit,
+  on_progress : (String, String, Int, Int, String, String, String, String) -> Unit,
+  on_success : (String, Int, Int, String, String, String) -> Unit,
   on_error : (String) -> Unit,
 ) -> Unit =
-  #| async (prompt, onSuccess, onError) => {
+  #| async (prompt, onProgress, onSuccess, onError) => {
   #|   try {
   #|     const params = new URLSearchParams(window.location.search);
   #|     const isDev = params.get("mode") === "dev";
@@ -90,6 +93,11 @@ extern "js" fn run_query_js(
   #|     const json = await resp.json();
   #|     const id = json.id;
   #|     console.log("run_query_js: got task id:", id);
+  #|     let lastCodeCount = 0;
+  #|     let lastDocsCount = 0;
+  #|     let lastCodeDetails = [];
+  #|     let lastDocsDetails = [];
+  #|     let lastStats = { llmCalls: 0, searchCalls: 0, toolCalls: 0 };
   #|     while (true) {
   #|       console.log("run_query_js: polling /query/" + id);
   #|       const pollResp = await fetch(baseUrl + "/query/" + id);
@@ -98,15 +106,32 @@ extern "js" fn run_query_js(
   #|         return;
   #|       }
   #|       const pollJson = await pollResp.json();
-  #|       console.log("run_query_js: poll status:", pollJson.status);
+  #|       console.log("run_query_js: poll status:", pollJson.status, "phase:", pollJson.phase);
+  #|       // Track counts and details
+  #|       if (pollJson.codeResultsCount !== undefined) lastCodeCount = pollJson.codeResultsCount;
+  #|       if (pollJson.docsResultsCount !== undefined) lastDocsCount = pollJson.docsResultsCount;
+  #|       if (pollJson.codeSearchDetails) lastCodeDetails = pollJson.codeSearchDetails;
+  #|       if (pollJson.docsSearchDetails) lastDocsDetails = pollJson.docsSearchDetails;
+  #|       if (pollJson.queryStats) lastStats = pollJson.queryStats;
   #|       if (pollJson.status === "done") {
-  #|         onSuccess(pollJson.content || pollJson.result || "");
+  #|         const codeCount = pollJson.codeResultsCount ?? lastCodeCount;
+  #|         const docsCount = pollJson.docsResultsCount ?? lastDocsCount;
+  #|         const codeDetails = pollJson.codeSearchDetails || lastCodeDetails;
+  #|         const docsDetails = pollJson.docsSearchDetails || lastDocsDetails;
+  #|         const stats = pollJson.queryStats || lastStats;
+  #|         onSuccess(pollJson.content || pollJson.result || "", codeCount, docsCount, JSON.stringify(codeDetails), JSON.stringify(docsDetails), JSON.stringify(stats));
   #|         return;
   #|       } else if (pollJson.status === "error") {
   #|         onError(pollJson.error || "Query failed");
   #|         return;
   #|       }
-  #|       await new Promise(r => setTimeout(r, 1000));
+  #|       // Report progress
+  #|       const phase = pollJson.phase || "running";
+  #|       const message = pollJson.message || "处理中...";
+  #|       const partialContent = pollJson.partialContent || "";
+  #|       onProgress(phase, message, lastCodeCount, lastDocsCount, partialContent, JSON.stringify(lastCodeDetails), JSON.stringify(lastDocsDetails), JSON.stringify(lastStats));
+  #|       const waitTime = (pollJson.nextPollSec || 1) * 1000;
+  #|       await new Promise(r => setTimeout(r, waitTime));
   #|     }
   #|   } catch (e) {
   #|     console.error("run_query_js error:", e);
