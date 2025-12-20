@@ -1,10 +1,4 @@
 ///|
-using @respo_node {div, span, button}
-
-///|
-using @css {respo_style}
-
-///|
 let app_store_key : String = "moonverse-portal"
 
 ///|
@@ -15,13 +9,7 @@ fn view(
     raise @respo_node.RespoCommonError("guarded")
   }
   // @dom_ffi.log("Store to render: " + store.to_json().stringify(indent=2))
-  div(class_name=@respo.ui_global, style=respo_style(padding=Px(12)), [
-    comp_query(
-      store.states.pick("query"),
-      store.query_result,
-      store.query_error,
-    ),
-  ])
+  comp_app(store.states.pick("app"), store)
 }
 
 ///|
@@ -45,19 +33,19 @@ fn main {
       app.store.val = app.store.val.update(op)
       match op {
         StartQuery(prompt) => {
-          let _ = @js_async.Promise::from_async(async fn() {
-            try {
-              let result = run_query(prompt)
-              app.store.val = app.store.val.update(QuerySuccess(result))
+          // Get the id that was just created
+          let id = app.store.val.next_id - 1
+          run_query_js(
+            prompt,
+            fn(result) {
+              app.store.val = app.store.val.update(QuerySuccess(id, result))
               @respo.mark_need_rerender()
-            } catch {
-              Failure(msg) => {
-                app.store.val = app.store.val.update(QueryError(msg))
-                @respo.mark_need_rerender()
-              }
-            }
-          })
-          ()
+            },
+            fn(err) {
+              app.store.val = app.store.val.update(QueryError(id, err))
+              @respo.mark_need_rerender()
+            },
+          )
         }
         _ => ()
       }
