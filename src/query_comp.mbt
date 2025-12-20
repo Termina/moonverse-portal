@@ -5,6 +5,34 @@ struct QueryState {
 } derive(Default, ToJson, @json.FromJson)
 
 ///|
+/// Copy helper keeps a raw markdown record for debugging in UI.
+extern "js" fn copy_to_clipboard(text : String) -> Unit =
+  #| (text) => {
+  #|   const safeText = text ?? "";
+  #|   if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+  #|     navigator.clipboard.writeText(safeText).catch(err => {
+  #|       console.warn("Clipboard write failed", err);
+  #|     });
+  #|     return;
+  #|   }
+  #|   const textarea = document.createElement("textarea");
+  #|   textarea.value = safeText;
+  #|   textarea.style.position = "fixed";
+  #|   textarea.style.opacity = "0";
+  #|   textarea.style.pointerEvents = "none";
+  #|   document.body.appendChild(textarea);
+  #|   textarea.focus();
+  #|   textarea.select();
+  #|   try {
+  #|     document.execCommand("copy");
+  #|   } catch (err) {
+  #|     console.error("execCommand copy failed", err);
+  #|   } finally {
+  #|     document.body.removeChild(textarea);
+  #|   }
+  #| }
+
+///|
 fn comp_query(
   states : @respo.RespoStatesTree,
   result : String,
@@ -101,6 +129,19 @@ fn comp_query(
       @respo_node.div(class_name=style_loading, [
         @respo_node.text_node("Thinking..."),
       ])
+    } else {
+      @respo_node.span([])
+    },
+    // 拷贝按钮
+    if not(result.is_empty()) {
+      @respo_node.button(
+        inner_text="Copy Raw Markdown",
+        class_name=style_copy_button,
+        on_click=fn(_e, _dispatch) {
+          copy_to_clipboard(result)
+          println("Copied markdown to clipboard, length: \{result.length()}")
+        },
+      )
     } else {
       @respo_node.span([])
     },
@@ -210,5 +251,25 @@ let style_loading : String = @respo_node.static_style([
   (
     "&",
     @css.respo_style(padding=Px(16), color=Hsl(220, 13, 50), font_style=Italic),
+  ),
+])
+
+///|
+let style_copy_button : String = @respo_node.static_style([
+  (
+    "&",
+    @css.respo_style(
+      margin_top=Px(12),
+      padding_left=Px(16),
+      padding_right=Px(16),
+      padding_top=Px(8),
+      padding_bottom=Px(8),
+      font_size=13,
+      background_color=Hsl(220, 10, 90),
+      color=Hsl(220, 13, 30),
+      border_width=Px(0),
+      border_radius=4.0,
+      cursor=Pointer,
+    ),
   ),
 ])
