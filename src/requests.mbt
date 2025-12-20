@@ -71,9 +71,13 @@ extern "js" fn run_query_js(
 ) -> Unit =
   #| async (prompt, onSuccess, onError) => {
   #|   try {
+  #|     const params = new URLSearchParams(window.location.search);
+  #|     const isDev = params.get("mode") === "dev";
+  #|     const baseUrl = isDev ? "http://localhost:8080" : "https://moonverse-api.tiye.me";
+  #|     console.log("run_query_js: using baseUrl:", baseUrl, "isDev:", isDev);
   #|     console.log("run_query_js: starting with prompt:", prompt);
   #|     const body = JSON.stringify({ type: "hybrid", query: prompt });
-  #|     const resp = await fetch("http://localhost:8080/query", {
+  #|     const resp = await fetch(baseUrl + "/query", {
   #|       method: "POST",
   #|       headers: { "Content-Type": "application/json" },
   #|       body
@@ -88,7 +92,7 @@ extern "js" fn run_query_js(
   #|     console.log("run_query_js: got task id:", id);
   #|     while (true) {
   #|       console.log("run_query_js: polling /query/" + id);
-  #|       const pollResp = await fetch("http://localhost:8080/query/" + id);
+  #|       const pollResp = await fetch(baseUrl + "/query/" + id);
   #|       if (!pollResp.ok) {
   #|         onError("Failed to poll: " + pollResp.status);
   #|         return;

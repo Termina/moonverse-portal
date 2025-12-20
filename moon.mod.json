@@ -5,7 +5,8 @@
     "tiye/respo": "0.2.3",
     "tiye/dom-ffi": "0.2.3",
     "tiye/respo_css": "0.1.4",
-    "moonbitlang/async": "0.15.0"
+    "moonbitlang/async": "0.15.0",
+    "tiye/respo-markdown": "0.1.2"
   },
   "readme": "README.md",
   "repository": "",

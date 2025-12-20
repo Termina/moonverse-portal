@@ -96,7 +96,7 @@ fn comp_query(
     },
     // 结果显示
     if not(result.is_empty()) {
-      @respo_node.div(class_name=style_result, [@respo_node.text_node(result)])
+      @respo_node.div(class_name=style_result, [@markdown.comp_md_block(result)])
     } else if state.loading {
       @respo_node.div(class_name=style_loading, [
         @respo_node.text_node("Thinking..."),
